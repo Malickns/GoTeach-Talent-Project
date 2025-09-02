@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\OffreEmploisController;
+use App\Http\Controllers\PostulationController;
 use App\Http\Controllers\StatistiqueController;
 use App\Http\Controllers\JeuneController as AdminLocalJeunesController;
 use Illuminate\Support\Facades\Route;
@@ -74,6 +75,14 @@ Route::middleware(['auth', 'status:actif'])->group(function () {
 Route::middleware(['auth', 'role:jeune', 'status:actif'])->prefix('jeunes')->name('jeunes.')->group(function () {
     Route::get('/dashboard', [App\Http\Controllers\JeuneController::class, 'dashboard'])->name('dashboard');
     Route::get('/offres', [App\Http\Controllers\JeuneController::class, 'offres'])->name('offres');
+    Route::get('/offres/toutes', [OffreEmploisController::class, 'toutesOffres'])->name('offres.toutes');
+    
+    // Routes pour les candidatures
+            Route::get('/offres/{offreId}/candidature', [PostulationController::class, 'showCandidatureForm'])->name('offres.candidature.form');
+        Route::get('/documents/existants', [PostulationController::class, 'getExistingDocuments'])->name('documents.existants');
+    Route::post('/offres/{offreId}/candidature', [PostulationController::class, 'submitCandidature'])->name('offres.candidature.submit');
+    Route::get('/candidatures/{postulationId}', [PostulationController::class, 'getPostulationDetails'])->name('candidatures.details');
+    Route::delete('/candidatures/{postulationId}', [PostulationController::class, 'retirerCandidature'])->name('candidatures.retirer');
     Route::get('/offres/{offre}', [App\Http\Controllers\JeuneController::class, 'showOffre'])->name('offres.show');
     Route::get('/offres/{offre}/candidature', [App\Http\Controllers\JeuneController::class, 'candidature'])->name('offres.candidature');
     Route::post('/offres/{offre}/postuler', [App\Http\Controllers\JeuneController::class, 'postuler'])->name('offres.postuler');

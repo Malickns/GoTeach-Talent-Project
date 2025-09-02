@@ -1,159 +1,808 @@
-@extends('layouts.app')
+@extends('pages.jeunes.layouts.app')
 
-@section('title', 'Mes candidatures')
+@section('title', 'GOTeach - Mes Candidatures')
+
+@section('head')
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --dhl-red: #d40511;
+            --dhl-yellow: #ffcc00;
+            --sos-blue: #0066cc;
+            --senegal-green: #00a651;
+            --primary: #1e293b;
+            --secondary: #475569;
+            --accent: #3b82f6;
+            --light: #ffffff;
+            --dark: #0f172a;
+            --gray: #64748b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #06b6d4;
+            --bg-light: #f8fafc;
+            --border-light: #e2e8f0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            min-height: 100vh;
+            color: var(--dark);
+            line-height: 1.6;
+        }
+
+        /* Navigation Bar Styles */
+        .navbar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 12px 5%;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 3px 15px rgba(0, 0, 0, 0.08);
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .navbar-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--primary);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .logo:hover {
+            transform: scale(1.05);
+        }
+
+        .logo i {
+            margin-right: 10px;
+            font-size: 28px;
+            background: linear-gradient(135deg, var(--dhl-red), var(--dhl-yellow));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logo span {
+            background: linear-gradient(135deg, var(--dhl-red), var(--dhl-yellow));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .search-container {
+            flex: 1;
+            max-width: 450px;
+            margin: 0 30px;
+            position: relative;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 12px 20px;
+            border: 2px solid var(--border-light);
+            border-radius: 25px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: var(--light);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: var(--sos-blue);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .search-btn {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--sos-blue);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .search-btn:hover {
+            background: var(--accent);
+        }
+
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: var(--dark);
+            cursor: pointer;
+            padding: 8px;
+        }
+
+        .nav-menu {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            list-style: none;
+        }
+
+        .nav-item a {
+            text-decoration: none;
+            color: var(--dark);
+            font-weight: 500;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-item a:hover {
+            color: var(--sos-blue);
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .nav-item a.active {
+            color: var(--sos-blue);
+            background: rgba(59, 130, 246, 0.15);
+        }
+
+        .profile-section {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .notifications {
+            position: relative;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .notifications:hover {
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .notifications i {
+            font-size: 18px;
+            color: var(--secondary);
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: var(--dhl-red);
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            min-width: 18px;
+            text-align: center;
+        }
+
+        .profile-img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .profile-img:hover {
+            transform: scale(1.1);
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        /* Responsive Navigation */
+        @media (max-width: 768px) {
+            .search-container {
+                display: none;
+            }
+
+            .nav-menu {
+                display: none;
+            }
+
+            .mobile-menu-btn {
+                display: block;
+            }
+        }
+
+        /* Main Content Styles */
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            margin-top: 80px; /* Espace pour le header principal */
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .page-title {
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--dark);
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, var(--sos-blue), var(--dhl-red));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-subtitle {
+            font-size: 1.2rem;
+            color: var(--secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            margin-bottom: 50px;
+        }
+
+        .stat-card {
+            background: var(--light);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(135deg, var(--sos-blue), var(--dhl-red));
+        }
+
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        .stat-icon.total {
+            background: linear-gradient(135deg, var(--sos-blue), var(--accent));
+            color: white;
+        }
+
+        .stat-icon.en-attente {
+            background: linear-gradient(135deg, var(--warning), #fbbf24);
+            color: white;
+        }
+
+        .stat-icon.retenues {
+            background: linear-gradient(135deg, var(--success), #34d399);
+            color: white;
+        }
+
+        .stat-icon.refusees {
+            background: linear-gradient(135deg, var(--danger), #f87171);
+            color: white;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--dark);
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            font-size: 1rem;
+            color: var(--secondary);
+            font-weight: 500;
+        }
+
+        /* Candidatures List */
+        .candidatures-section {
+            background: var(--light);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-light);
+            overflow: hidden;
+        }
+
+        .section-header {
+            background: linear-gradient(135deg, var(--sos-blue), var(--dhl-red));
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .section-subtitle {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        .candidatures-list {
+            padding: 0;
+        }
+
+        .candidature-item {
+            padding: 30px;
+            border-bottom: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+        }
+
+        .candidature-item:hover {
+            background: var(--bg-light);
+        }
+
+        .candidature-item:last-child {
+            border-bottom: none;
+        }
+
+        .candidature-header {
+            display: flex;
+            justify-content: between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .candidature-info {
+            flex: 1;
+        }
+
+        .candidature-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .candidature-company {
+            font-size: 1.1rem;
+            color: var(--sos-blue);
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .candidature-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--secondary);
+        }
+
+        .detail-item i {
+            color: var(--sos-blue);
+            width: 20px;
+        }
+
+        .candidature-status {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-en-attente {
+            background: rgba(245, 158, 11, 0.1);
+            color: #d97706;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .status-retenu {
+            background: rgba(59, 130, 246, 0.1);
+            color: #2563eb;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .status-entretien {
+            background: rgba(139, 92, 246, 0.1);
+            color: #7c3aed;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .status-embauche {
+            background: rgba(16, 185, 129, 0.1);
+            color: #059669;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .status-rejete {
+            background: rgba(239, 68, 68, 0.1);
+            color: #dc2626;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .status-annulee {
+            background: rgba(107, 114, 128, 0.1);
+            color: #6b7280;
+            border: 1px solid rgba(107, 114, 128, 0.3);
+        }
+
+        .candidature-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--sos-blue), var(--accent));
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--sos-blue);
+            border: 2px solid var(--sos-blue);
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-secondary:hover {
+            background: var(--sos-blue);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: white;
+            color: var(--danger);
+            border: 2px solid var(--danger);
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-danger:hover {
+            background: var(--danger);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 80px 40px;
+        }
+
+        .empty-icon {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, var(--sos-blue), var(--dhl-red));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 30px;
+            font-size: 48px;
+            color: white;
+        }
+
+        .empty-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 15px;
+        }
+
+        .empty-description {
+            font-size: 1.1rem;
+            color: var(--secondary);
+            margin-bottom: 30px;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Pagination */
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            padding: 30px;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .pagination {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .page-link {
+            padding: 10px 16px;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            color: var(--dark);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .page-link:hover {
+            background: var(--sos-blue);
+            color: white;
+            border-color: var(--sos-blue);
+        }
+
+        .page-link.active {
+            background: var(--sos-blue);
+            color: white;
+            border-color: var(--sos-blue);
+        }
+
+        .page-link.disabled {
+            color: var(--secondary);
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 20px 15px;
+            }
+
+            .page-title {
+                font-size: 2rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .candidature-header {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .candidature-details {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .candidature-actions {
+                flex-direction: column;
+            }
+
+            .btn-primary, .btn-secondary, .btn-danger {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+@endsection
 
 @section('content')
-<div class="min-h-screen bg-gray-50 py-8">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <!-- Header -->
-        <div class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-900">Mes candidatures</h1>
-            <p class="mt-2 text-gray-600">Suivez l'état de vos candidatures et gérez vos postulations</p>
-        </div>
-
+    <!-- Main Content -->
+    <div class="main-container">
         @if($candidatures->count() > 0)
-            <!-- Statistiques rapides -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                                <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
-                                </svg>
-                            </div>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-sm font-medium text-gray-500">Total</p>
-                            <p class="text-2xl font-semibold text-gray-900">{{ $candidatures->total() }}</p>
-                        </div>
+            <!-- Statistiques -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon total">
+                        <i class="fas fa-list"></i>
                     </div>
+                    <div class="stat-number">{{ $candidatures->total() }}</div>
+                    <div class="stat-label">Total des candidatures</div>
                 </div>
 
-                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <div class="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                                <svg class="w-5 h-5 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
-                                </svg>
-                            </div>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-sm font-medium text-gray-500">En attente</p>
-                            <p class="text-2xl font-semibold text-gray-900">{{ $candidatures->where('statut', 'en_attente')->count() }}</p>
-                        </div>
+                <div class="stat-card">
+                    <div class="stat-icon en-attente">
+                        <i class="fas fa-clock"></i>
                     </div>
+                    <div class="stat-number">{{ $candidatures->where('statut', 'en_attente')->count() }}</div>
+                    <div class="stat-label">En attente</div>
                 </div>
 
-                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                                <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                                </svg>
-                            </div>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-sm font-medium text-gray-500">Retenues</p>
-                            <p class="text-2xl font-semibold text-gray-900">{{ $candidatures->whereIn('statut', ['retenu', 'entretien_programme', 'entretien_effectue'])->count() }}</p>
-                        </div>
+                <div class="stat-card">
+                    <div class="stat-icon retenues">
+                        <i class="fas fa-check-circle"></i>
                     </div>
+                    <div class="stat-number">{{ $candidatures->whereIn('statut', ['retenu', 'entretien_programme', 'entretien_effectue'])->count() }}</div>
+                    <div class="stat-label">Retenues</div>
                 </div>
 
-                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-                                <svg class="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-                                </svg>
-                            </div>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-sm font-medium text-gray-500">Refusées</p>
-                            <p class="text-2xl font-semibold text-gray-900">{{ $candidatures->whereIn('statut', ['rejete', 'annulee'])->count() }}</p>
-                        </div>
+                <div class="stat-card">
+                    <div class="stat-icon refusees">
+                        <i class="fas fa-times-circle"></i>
                     </div>
+                    <div class="stat-number">{{ $candidatures->whereIn('statut', ['rejete', 'annulee'])->count() }}</div>
+                    <div class="stat-label">Refusées</div>
                 </div>
             </div>
 
             <!-- Liste des candidatures -->
-            <div class="bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h2 class="text-lg font-semibold text-gray-900">Historique des candidatures</h2>
+            <div class="candidatures-section">
+                <div class="section-header">
+                    <h2 class="section-title">Historique des candidatures</h2>
+                    <p class="section-subtitle">Retrouvez toutes vos postulations et leur statut actuel</p>
                 </div>
                 
-                <div class="divide-y divide-gray-200">
+                <div class="candidatures-list">
                     @foreach($candidatures as $candidature)
-                        <div class="p-6 hover:bg-gray-50 transition duration-150 ease-in-out">
-                            <div class="flex items-start justify-between">
-                                <div class="flex-1">
-                                    <div class="flex items-center space-x-3 mb-2">
-                                        <h3 class="text-lg font-medium text-gray-900">
-                                            <a href="{{ route('jeunes.offres.show', $candidature->offreEmplois) }}" class="hover:text-blue-600">
+                        <div class="candidature-item">
+                            <div class="candidature-header">
+                                <div class="candidature-info">
+                                    <div class="candidature-title">
+                                        <i class="fas fa-briefcase"></i>
                                                 {{ $candidature->offreEmplois->titre }}
-                                            </a>
-                                        </h3>
-                                        @php
-                                            $statusColors = [
-                                                'en_attente' => 'bg-yellow-100 text-yellow-800',
-                                                'retenu' => 'bg-blue-100 text-blue-800',
-                                                'entretien_programme' => 'bg-purple-100 text-purple-800',
-                                                'entretien_effectue' => 'bg-indigo-100 text-indigo-800',
-                                                'embauche' => 'bg-green-100 text-green-800',
-                                                'rejete' => 'bg-red-100 text-red-800',
-                                                'annulee' => 'bg-gray-100 text-gray-800'
-                                            ];
-                                            $statusLabels = [
-                                                'en_attente' => 'En attente',
-                                                'retenu' => 'Retenu',
-                                                'entretien_programme' => 'Entretien programmé',
-                                                'entretien_effectue' => 'Entretien effectué',
-                                                'embauche' => 'Embauché',
-                                                'rejete' => 'Refusé',
-                                                'annulee' => 'Annulé'
-                                            ];
-                                        @endphp
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $statusColors[$candidature->statut] ?? 'bg-gray-100 text-gray-800' }}">
-                                            {{ $statusLabels[$candidature->statut] ?? ucfirst($candidature->statut) }}
-                                        </span>
+                                    </div>
+                                    <div class="candidature-company">
+                                        <i class="fas fa-building"></i>
+                                        {{ $candidature->offreEmplois->employeur->nom_entreprise ?? 'Entreprise non spécifiée' }}
                                     </div>
                                     
-                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-                                        <div>
-                                            <span class="font-medium">Entreprise :</span>
-                                            {{ $candidature->offreEmplois->employeur->nom_entreprise ?? 'Non spécifié' }}
+                                    <div class="candidature-details">
+                                        <div class="detail-item">
+                                            <i class="fas fa-map-marker-alt"></i>
+                                            <span>{{ $candidature->offreEmplois->ville_travail ?? 'Localisation non spécifiée' }}</span>
                                         </div>
-                                        <div>
-                                            <span class="font-medium">Localisation :</span>
-                                            {{ $candidature->offreEmplois->ville_travail }}
+                                        <div class="detail-item">
+                                            <i class="fas fa-calendar-alt"></i>
+                                            <span>Postulé le {{ $candidature->date_postulation ? $candidature->date_postulation->format('d/m/Y') : 'Date inconnue' }}</span>
                                         </div>
-                                        <div>
-                                            <span class="font-medium">Date de candidature :</span>
-                                            {{ $candidature->date_postulation ? $candidature->date_postulation->format('d/m/Y') : 'Date inconnue' }}
+                                        <div class="detail-item">
+                                            <i class="fas fa-file-contract"></i>
+                                            <span>{{ $candidature->offreEmplois->type_contrat ?? 'Type non spécifié' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="candidature-status">
+                                    @php
+                                        $statusConfig = [
+                                            'en_attente' => ['class' => 'status-en-attente', 'label' => 'En attente'],
+                                            'retenu' => ['class' => 'status-retenu', 'label' => 'Retenu'],
+                                            'entretien_programme' => ['class' => 'status-entretien', 'label' => 'Entretien programmé'],
+                                            'entretien_effectue' => ['class' => 'status-entretien', 'label' => 'Entretien effectué'],
+                                            'embauche' => ['class' => 'status-embauche', 'label' => 'Embauché'],
+                                            'rejete' => ['class' => 'status-rejete', 'label' => 'Refusé'],
+                                            'annulee' => ['class' => 'status-annulee', 'label' => 'Annulé']
+                                        ];
+                                        $status = $statusConfig[$candidature->statut] ?? ['class' => 'status-en-attente', 'label' => ucfirst($candidature->statut)];
+                                    @endphp
+                                    <span class="status-badge {{ $status['class'] }}">
+                                        {{ $status['label'] }}
+                                    </span>
                                         </div>
                                     </div>
 
-                                    @if($candidature->message_employeur)
-                                        <div class="mt-3 p-3 bg-gray-50 rounded-md">
-                                            <p class="text-sm text-gray-700">
-                                                <span class="font-medium">Message :</span>
-                                                {{ $candidature->message_employeur }}
+                            @if($candidature->commentaire_employeur)
+                                <div class="mt-4 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-400">
+                                    <p class="text-sm text-blue-800">
+                                        <strong>Message de l'employeur :</strong><br>
+                                        {{ $candidature->commentaire_employeur }}
                                             </p>
                                         </div>
                                     @endif
-                                </div>
-
-                                <div class="flex items-center space-x-2 ml-4">
-                                    <a href="{{ route('jeunes.candidatures.show', $candidature) }}" 
-                                       class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path>
-                                            <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"></path>
-                                        </svg>
-                                        Voir
+                            
+                            <div class="candidature-actions">
+                                <a href="{{ route('jeunes.offres.show', $candidature->offreEmplois) }}" class="btn-primary">
+                                    <i class="fas fa-eye"></i>
+                                    Voir l'offre
+                                </a>
+                                
+                                <a href="{{ route('jeunes.candidatures.show', $candidature) }}" class="btn-secondary">
+                                    <i class="fas fa-info-circle"></i>
+                                    Détails
                                     </a>
                                     
                                     @if($candidature->statut === 'en_attente')
@@ -161,15 +810,12 @@
                                             @csrf
                                             <button type="submit" 
                                                     onclick="return confirm('Êtes-vous sûr de vouloir annuler cette candidature ?')"
-                                                    class="inline-flex items-center px-3 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
-                                                <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-                                                </svg>
+                                                class="btn-danger">
+                                            <i class="fas fa-times"></i>
                                                 Annuler
                                             </button>
                                         </form>
                                     @endif
-                                </div>
                             </div>
                         </div>
                     @endforeach
@@ -177,30 +823,114 @@
 
                 <!-- Pagination -->
                 @if($candidatures->hasPages())
-                    <div class="px-6 py-4 border-t border-gray-200">
-                        {{ $candidatures->links() }}
+                    <div class="pagination-container">
+                        <div class="pagination">
+                            {{-- Previous Page Link --}}
+                            @if ($candidatures->onFirstPage())
+                                <span class="page-link disabled">
+                                    <i class="fas fa-chevron-left"></i>
+                                </span>
+                            @else
+                                <a href="{{ $candidatures->previousPageUrl() }}" class="page-link">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            @endif
+
+                            {{-- Pagination Elements --}}
+                            @foreach ($candidatures->getUrlRange(1, $candidatures->lastPage()) as $page => $url)
+                                @if ($page == $candidatures->currentPage())
+                                    <span class="page-link active">{{ $page }}</span>
+                                @else
+                                    <a href="{{ $url }}" class="page-link">{{ $page }}</a>
+                                @endif
+                            @endforeach
+
+                            {{-- Next Page Link --}}
+                            @if ($candidatures->hasMorePages())
+                                <a href="{{ $candidatures->nextPageUrl() }}" class="page-link">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            @else
+                                <span class="page-link disabled">
+                                    <i class="fas fa-chevron-right"></i>
+                                </span>
+                            @endif
+                        </div>
                     </div>
                 @endif
             </div>
         @else
             <!-- État vide -->
-            <div class="text-center py-12">
-                <div class="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6">
-                    <svg class="w-12 h-12 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
-                    </svg>
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <i class="fas fa-paper-plane"></i>
                 </div>
-                <h3 class="text-lg font-medium text-gray-900 mb-2">Aucune candidature</h3>
-                <p class="text-gray-600 mb-6">Vous n'avez pas encore postulé à des offres d'emploi.</p>
-                <a href="{{ route('jeunes.offres') }}" 
-                   class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"></path>
-                    </svg>
+                <h3 class="empty-title">Aucune candidature</h3>
+                <p class="empty-description">Vous n'avez pas encore postulé à des offres d'emploi. Commencez par explorer les offres disponibles et postulez à celles qui vous intéressent.</p>
+                <a href="{{ route('jeunes.offres.toutes') }}" class="btn-primary">
+                    <i class="fas fa-briefcase"></i>
                     Découvrir les offres
                 </a>
             </div>
         @endif
     </div>
-</div>
+@endsection
+
+@section('scripts')
+    <script>
+        // Recherche dans les candidatures
+        const searchBox = document.querySelector('.search-box');
+        if (searchBox) {
+            searchBox.addEventListener('input', function() {
+                const query = this.value.toLowerCase();
+                const candidatureItems = document.querySelectorAll('.candidature-item');
+                
+                candidatureItems.forEach(item => {
+                    const title = item.querySelector('.candidature-title').textContent.toLowerCase();
+                    const company = item.querySelector('.candidature-company').textContent.toLowerCase();
+                    
+                    if (title.includes(query) || company.includes(query)) {
+                        item.style.display = 'block';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+        }
+
+        // Animation des cartes de statistiques
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        // Observer les cartes de statistiques
+        document.querySelectorAll('.stat-card').forEach(card => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(30px)';
+            card.style.transition = 'all 0.6s ease-out';
+            observer.observe(card);
+        });
+
+        // Animation des éléments de candidature
+        document.querySelectorAll('.candidature-item').forEach((item, index) => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateY(30px)';
+            item.style.transition = 'all 0.6s ease-out';
+            
+            setTimeout(() => {
+                item.style.opacity = '1';
+                item.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
+    </script>
 @endsection

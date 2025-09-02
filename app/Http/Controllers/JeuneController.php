@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
+use App\Services\RecommendationService;
 
 class JeuneController extends Controller
 {
@@ -449,8 +450,8 @@ class JeuneController extends Controller
             return redirect()->route('profile.edit')->with('error', 'Veuillez compléter votre profil jeune.');
         }
 
-        // Récupérer les offres recommandées
-        $offresRecommandees = $jeune->getOffresRecommandees()->get();
+        // Recommandations paginées basées sur profil/compétences/préférences
+        $offresRecommandees = RecommendationService::recommandationsPourJeune($jeune, 12);
         
         // Récupérer les offres récentes (non expirées)
         $offresRecentes = OffreEmplois::visible()

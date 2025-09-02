@@ -25,6 +25,11 @@ class ProfileUpdateRequest extends FormRequest
                 'max:255',
                 Rule::unique(User::class)->ignore($this->user()->id),
             ],
+            'preferences_emploi' => ['nullable','string','max:1000'],
+            'types_contrat_preferes' => ['nullable','array'],
+            'types_contrat_preferes.*' => ['in:cdi,cdd,stage,formation,freelance,autre'],
+            'secteurs_preferes' => ['nullable','array'],
+            'secteurs_preferes.*' => ['string','max:100'],
         ];
     }
 }

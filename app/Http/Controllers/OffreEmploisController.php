@@ -51,6 +51,76 @@ class OffreEmploisController extends Controller
     }
 
     /**
+     * Affiche toutes les offres avec filtres et pagination
+     */
+    public function toutesOffres(Request $request)
+    {
+        $user = Auth::user();
+        
+        // Récupération des paramètres de filtrage
+        $search = $request->get('search');
+        $typeContrat = $request->get('type_contrat');
+        $ville = $request->get('ville');
+        $urgent = $request->get('urgent');
+        $recent = $request->get('recent');
+        $sortBy = $request->get('sort', 'created_at');
+        $sortOrder = $request->get('order', 'desc');
+        
+        // Construction de la requête
+        $query = OffreEmplois::with(['employeur.user'])
+            ->visible();
+        
+        // Filtres
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('titre', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhere('competences_requises', 'like', "%{$search}%")
+                  ->orWhere('ville_travail', 'like', "%{$search}%");
+            });
+        }
+        
+        if ($typeContrat) {
+            $query->where('type_contrat', $typeContrat);
+        }
+        
+        if ($ville) {
+            $query->where('ville_travail', 'like', "%{$ville}%");
+        }
+        
+        if ($urgent) {
+            $query->where('offre_urgente', true);
+        }
+        
+        if ($recent) {
+            $query->whereNotNull('date_publication')
+                  ->where('date_publication', '>=', now()->subDays(30));
+        }
+        
+        // Tri
+        if ($sortBy === 'urgent') {
+            $query->orderBy('offre_urgente', 'desc')
+                  ->orderBy('created_at', 'desc');
+        } else {
+            $query->orderBy($sortBy, $sortOrder);
+        }
+        
+        // Pagination
+        $offres = $query->paginate(12)->withQueryString();
+        
+        // Statistiques pour les filtres
+        $stats = [
+            'total' => OffreEmplois::visible()->count(),
+            'urgentes' => OffreEmplois::visible()->urgentes()->count(),
+            'recentes' => OffreEmplois::visible()->recentes()->count(),
+            'villes' => OffreEmplois::visible()->distinct('ville_travail')->pluck('ville_travail')->filter()->values(),
+            'types' => OffreEmplois::visible()->distinct('type_contrat')->pluck('type_contrat')->filter()->values(),
+        ];
+        
+        return view('pages.jeunes.offres', compact('offres', 'stats', 'request'));
+    }
+
+    /**
      * Show the form for creating a new resource.
      */
     public function create()

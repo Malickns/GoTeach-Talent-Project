@@ -3,191 +3,336 @@
 namespace App\Http\Controllers;
 
 use App\Models\Postulation;
+use App\Models\Document;
 use App\Models\OffreEmplois;
+use App\Models\Jeune;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class PostulationController extends Controller
 {
     /**
-     * Afficher la liste des candidatures pour un employeur
+     * Afficher le formulaire de candidature
      */
-    public function index(Request $request)
+    public function showCandidatureForm($offreId)
     {
-        $employeurId = Auth::user()?->employeur?->employeur_id;
+        $offre = OffreEmplois::with('employeur.user')->findOrFail($offreId);
+        $jeune = Auth::user()->jeune;
         
-        $postulations = Postulation::with(['offre', 'jeune', 'cvDocument', 'lettreMotivationDocument'])
-            ->whereHas('offre', function($query) use ($employeurId) {
-                $query->where('employeur_id', $employeurId);
-            })
-            ->orderBy('date_postulation', 'desc')
-            ->paginate(15);
-
-        // Statistiques
-        $stats = [
-            'total' => Postulation::whereHas('offre', function($query) use ($employeurId) {
-                $query->where('employeur_id', $employeurId);
-            })->count(),
-            'en_attente' => Postulation::whereHas('offre', function($query) use ($employeurId) {
-                $query->where('employeur_id', $employeurId);
-            })->where('statut', 'en_attente')->count(),
-            'retenues' => Postulation::whereHas('offre', function($query) use ($employeurId) {
-                $query->where('employeur_id', $employeurId);
-            })->where('statut', 'retenu')->count(),
-            'rejetees' => Postulation::whereHas('offre', function($query) use ($employeurId) {
-                $query->where('employeur_id', $employeurId);
-            })->where('statut', 'rejete')->count(),
-        ];
-
-        return view('pages.employeurs.candidatures.index', compact('postulations', 'stats'));
+        // Vérifier si l'utilisateur a déjà postulé
+        $existingPostulation = Postulation::where('offre_id', $offreId)
+            ->where('jeune_id', $jeune->jeune_id)
+            ->first();
+            
+        if ($existingPostulation) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vous avez déjà postulé pour cette offre.',
+                'postulation' => $existingPostulation
+            ]);
+        }
+        
+        // Récupérer les documents existants de l'utilisateur
+        $documents = Document::where('jeune_id', $jeune->jeune_id)
+            ->whereIn('type', ['cv', 'lettre_motivation'])
+            ->get()
+            ->keyBy('type');
+        
+        return response()->json([
+            'success' => true,
+            'offre' => $offre,
+            'jeune' => $jeune,
+            'documents' => $documents
+        ]);
     }
-
+    
     /**
-     * Afficher les détails d'une candidature
+     * Soumettre une candidature
      */
-    public function show($id)
+    public function submitCandidature(Request $request, $offreId)
     {
-        $employeurId = Auth::user()?->employeur?->employeur_id;
+        $validator = Validator::make($request->all(), [
+            'cv_file' => 'nullable|file|mimes:pdf,doc,docx|max:2048',
+            'lettre_motivation_file' => 'nullable|file|mimes:pdf,doc,docx|max:2048',
+            'use_existing_cv' => 'nullable|boolean',
+            'use_existing_lm' => 'nullable|boolean',
+            'message_motivation' => 'nullable|string|max:1000',
+            'disponibilite' => 'required|string|in:immediate,1_semaine,2_semaines,1_mois,plus',
+            'niveau_etude' => 'required|string|max:100',
+            'langues' => 'nullable|string|max:500',
+            'competences' => 'nullable|string|max:500',
+        ]);
         
+        if ($validator->fails()) {
+            $errorMessages = [];
+            foreach ($validator->errors()->all() as $error) {
+                $errorMessages[] = $error;
+            }
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreurs de validation : ' . implode(', ', $errorMessages),
+                'errors' => $validator->errors()
+            ]);
+        }
+        
+        try {
+            $jeune = Auth::user()->jeune;
+            $offre = OffreEmplois::findOrFail($offreId);
+            
+            // Vérifier si l'utilisateur a déjà postulé
+            $existingPostulation = Postulation::where('offre_id', $offreId)
+                ->where('jeune_id', $jeune->jeune_id)
+                ->first();
+                
+            if ($existingPostulation) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Vous avez déjà postulé pour cette offre.'
+                ]);
+            }
+            
+            // Validation conditionnelle pour les documents
+            $useExistingCv = $request->boolean('use_existing_cv');
+            $useExistingLm = $request->boolean('use_existing_lm');
+            
+            // Vérifier que l'utilisateur a soit un nouveau fichier, soit un document existant
+            if (!$useExistingCv && !$request->hasFile('cv_file')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Vous devez soit uploader un nouveau CV, soit utiliser votre CV existant.'
+                ]);
+            }
+            
+            if (!$useExistingLm && !$request->hasFile('lettre_motivation_file')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Vous devez soit uploader une nouvelle lettre de motivation, soit utiliser votre lettre existante.'
+                ]);
+            }
+            
+            // Traiter les fichiers uploadés et récupérer les documents existants
+            $cvDocumentId = null;
+            $lmDocumentId = null;
+            $cvPath = null;
+            $lmPath = null;
+            
+            // Traiter le CV
+            if ($useExistingCv) {
+                // Récupérer le CV existant
+                $cvDocument = Document::where('jeune_id', $jeune->jeune_id)
+                    ->where('type', 'cv')
+                    ->first();
+                
+                if (!$cvDocument) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Aucun CV existant trouvé. Veuillez uploader un nouveau CV.'
+                    ]);
+                }
+                
+                $cvDocumentId = $cvDocument->document_id;
+                $cvPath = $cvDocument->chemin_fichier;
+            } elseif ($request->hasFile('cv_file')) {
+                $cvFile = $request->file('cv_file');
+                $cvFileName = 'cv_' . $jeune->jeune_id . '_' . time() . '.' . $cvFile->getClientOriginalExtension();
+                $cvPath = $cvFile->storeAs('documents/cv', $cvFileName, 'public');
+                
+                // Vérifier si l'utilisateur a déjà un CV
+                $cvDocument = Document::where('jeune_id', $jeune->jeune_id)
+                    ->where('type', 'cv')
+                    ->first();
+                
+                if ($cvDocument) {
+                    // Mettre à jour le CV existant
+                    $cvDocument->update([
+                        'chemin_fichier' => $cvPath,
+                        'nom_original' => $cvFile->getClientOriginalName(),
+                    ]);
+                    $cvDocumentId = $cvDocument->document_id;
+                } else {
+                    // Créer un nouveau CV
+                    $cvDocument = Document::create([
+                        'jeune_id' => $jeune->jeune_id,
+                        'type' => 'cv',
+                        'chemin_fichier' => $cvPath,
+                        'nom_original' => $cvFile->getClientOriginalName(),
+                    ]);
+                    $cvDocumentId = $cvDocument->document_id;
+                }
+            }
+            
+            // Traiter la lettre de motivation
+            if ($useExistingLm) {
+                // Récupérer la lettre de motivation existante
+                $lmDocument = Document::where('jeune_id', $jeune->jeune_id)
+                    ->where('type', 'lettre_motivation')
+                    ->first();
+                
+                if (!$lmDocument) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Aucune lettre de motivation existante trouvée. Veuillez uploader une nouvelle lettre.'
+                    ]);
+                }
+                
+                $lmDocumentId = $lmDocument->document_id;
+                $lmPath = $lmDocument->chemin_fichier;
+            } elseif ($request->hasFile('lettre_motivation_file')) {
+                $lmFile = $request->file('lettre_motivation_file');
+                $lmFileName = 'lm_' . $jeune->jeune_id . '_' . time() . '.' . $lmFile->getClientOriginalExtension();
+                $lmPath = $lmFile->storeAs('documents/lettres_motivation', $lmFileName, 'public');
+                
+                // Vérifier si l'utilisateur a déjà une lettre de motivation
+                $lmDocument = Document::where('jeune_id', $jeune->jeune_id)
+                    ->where('type', 'lettre_motivation')
+                    ->first();
+                
+                if ($lmDocument) {
+                    // Mettre à jour la lettre existante
+                    $lmDocument->update([
+                        'chemin_fichier' => $lmPath,
+                        'nom_original' => $lmFile->getClientOriginalName(),
+                    ]);
+                    $lmDocumentId = $lmDocument->document_id;
+                } else {
+                    // Créer une nouvelle lettre
+                    $lmDocument = Document::create([
+                        'jeune_id' => $jeune->jeune_id,
+                        'type' => 'lettre_motivation',
+                        'chemin_fichier' => $lmPath,
+                        'nom_original' => $lmFile->getClientOriginalName(),
+                    ]);
+                    $lmDocumentId = $lmDocument->document_id;
+                }
+            }
+            
+            // Créer la postulation
+            $postulation = Postulation::create([
+                'offre_id' => $offreId,
+                'jeune_id' => $jeune->jeune_id,
+                'cv_path' => $cvPath,
+                'lettre_motivation_path' => $lmPath,
+                'cv_document_id' => $cvDocumentId,
+                'lm_document_id' => $lmDocumentId,
+                'documents_supplementaires' => [
+                    'message_motivation' => $request->message_motivation,
+                    'disponibilite' => $request->disponibilite,
+                    'niveau_etude' => $request->niveau_etude,
+                    'langues' => $request->langues,
+                    'competences' => $request->competences,
+                ],
+                'statut' => 'en_attente',
+                'date_postulation' => now(),
+            ]);
+            
+            // Log de l'activité
+            \Log::info('Nouvelle candidature soumise', [
+                'postulation_id' => $postulation->postulation_id,
+                'offre_id' => $offreId,
+                'jeune_id' => $jeune->jeune_id,
+                'offre_titre' => $offre->titre,
+                'jeune_nom' => $jeune->nom ?? 'N/A'
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Votre candidature a été soumise avec succès !',
+                'postulation_id' => $postulation->postulation_id,
+                'redirect_url' => route('jeunes.dashboard')
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Erreur lors de la soumission de candidature', [
+                'offre_id' => $offreId,
+                'jeune_id' => $jeune->jeune_id ?? 'N/A',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Une erreur est survenue lors de la soumission de votre candidature. Veuillez réessayer.'
+            ], 500);
+        }
+    }
+    
+    /**
+     * Obtenir les détails d'une postulation
+     */
+    public function getPostulationDetails($postulationId)
+    {
         $postulation = Postulation::with(['offre', 'jeune', 'cvDocument', 'lettreMotivationDocument'])
-            ->whereHas('offre', function($query) use ($employeurId) {
-                $query->where('employeur_id', $employeurId);
-            })
-            ->findOrFail($id);
-
-        // Incrémenter le nombre de vues
-        $postulation->increment('nombre_vues_employeur');
-
-        return view('pages.employeurs.candidatures.show', compact('postulation'));
-    }
-
-    /**
-     * Télécharger le CV d'un candidat
-     */
-    public function downloadCv($id)
-    {
-        $employeurId = Auth::id();
-        
-        $postulation = Postulation::with(['offre', 'cvDocument'])
-            ->whereHas('offre', function($query) use ($employeurId) {
-                $query->where('employeur_id', $employeurId);
-            })
-            ->findOrFail($id);
-
-        // Incrémenter le nombre de téléchargements
-        $postulation->increment('nombre_telechargements_cv');
-
-        if ($postulation->cv_document_id && $postulation->cvDocument) {
-            return response()->download(storage_path('app/public/' . $postulation->cvDocument->chemin_fichier), $postulation->cvDocument->nom_original);
-        } elseif ($postulation->cv_path) {
-            return response()->download(storage_path('app/public/' . $postulation->cv_path));
-        }
-
-        return back()->with('error', 'CV non trouvé');
-    }
-
-    /**
-     * Télécharger la lettre de motivation
-     */
-    public function downloadLettreMotivation($id)
-    {
-        $employeurId = Auth::user()?->employeur?->employeur_id;
-        
-        $postulation = Postulation::with(['offre', 'lettreMotivationDocument'])
-            ->whereHas('offre', function($query) use ($employeurId) {
-                $query->where('employeur_id', $employeurId);
-            })
-            ->findOrFail($id);
-
-        // Incrémenter le nombre de téléchargements
-        $postulation->increment('nombre_telechargements_lm');
-
-        if ($postulation->lm_document_id && $postulation->lettreMotivationDocument) {
-            return response()->download(storage_path('app/public/' . $postulation->lettreMotivationDocument->chemin_fichier), $postulation->lettreMotivationDocument->nom_original);
-        } elseif ($postulation->lettre_motivation_path) {
-            return response()->download(storage_path('app/public/' . $postulation->lettre_motivation_path));
-        }
-
-        return back()->with('error', 'Lettre de motivation non trouvée');
-    }
-
-    /**
-     * Mettre à jour le statut d'une candidature
-     */
-    public function updateStatut(Request $request, $id)
-    {
-        $employeurId = Auth::user()?->employeur?->employeur_id;
-        
-        $postulation = Postulation::whereHas('offre', function($query) use ($employeurId) {
-            $query->where('employeur_id', $employeurId);
-        })->findOrFail($id);
-
-        $request->validate([
-            'statut' => 'required|in:en_attente,en_revue,retenu,rejete,entretien_programme,entretien_effectue,embauche,refuse_apres_entretien,retiree',
+            ->findOrFail($postulationId);
+            
+        return response()->json([
+            'success' => true,
+            'postulation' => $postulation
         ]);
-
-        $postulation->update([
-            'statut' => $request->statut,
-        ]);
-
-        return back()->with('success', 'Statut de la candidature mis à jour avec succès');
     }
-
+    
     /**
-     * Filtrer les candidatures par statut
+     * Récupérer les documents existants de l'utilisateur
      */
-    public function filter(Request $request)
+    public function getExistingDocuments()
     {
-        $employeurId = Auth::id();
-        $statut = $request->get('statut');
-        $offreId = $request->get('offre_id');
-
-        $query = Postulation::with(['offre', 'jeune'])
-            ->whereHas('offre', function($query) use ($employeurId) {
-                $query->where('employeur_id', $employeurId);
-            });
-
-        if ($statut && $statut !== 'tous') {
-            $query->where('statut', $statut);
-        }
-
-        if ($offreId) {
-            $query->where('offre_id', $offreId);
-        }
-
-        $postulations = $query->orderBy('date_postulation', 'desc')->paginate(15);
+        try {
+            $jeune = Auth::user()->jeune;
+            
+            $documents = Document::where('jeune_id', $jeune->jeune_id)
+                ->whereIn('type', ['cv', 'lettre_motivation'])
+                ->get()
+                ->keyBy('type');
 
         return response()->json([
-            'html' => view('pages.employeurs.candidatures.partials.liste', compact('postulations'))->render()
-        ]);
+                'success' => true,
+                'documents' => $documents
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des documents.'
+            ], 500);
+        }
     }
-
+    
     /**
-     * Obtenir les statistiques des candidatures
+     * Retirer une candidature
      */
-    public function stats()
+    public function retirerCandidature($postulationId)
     {
-        $employeurId = Auth::id();
-        
-        $stats = [
-            'total' => Postulation::whereHas('offre', function($query) use ($employeurId) {
-                $query->where('employeur_id', $employeurId);
-            })->count(),
-            'en_attente' => Postulation::whereHas('offre', function($query) use ($employeurId) {
-                $query->where('employeur_id', $employeurId);
-            })->where('statut', 'en_attente')->count(),
-            'retenues' => Postulation::whereHas('offre', function($query) use ($employeurId) {
-                $query->where('employeur_id', $employeurId);
-            })->where('statut', 'retenu')->count(),
-            'rejetees' => Postulation::whereHas('offre', function($query) use ($employeurId) {
-                $query->where('employeur_id', $employeurId);
-            })->where('statut', 'rejete')->count(),
-            'entretiens' => Postulation::whereHas('offre', function($query) use ($employeurId) {
-                $query->where('employeur_id', $employeurId);
-            })->whereIn('statut', ['entretien_programme', 'entretien_effectue'])->count(),
-        ];
-
-        return response()->json($stats);
+        try {
+            $jeune = Auth::user()->jeune;
+            $postulation = Postulation::where('postulation_id', $postulationId)
+                ->where('jeune_id', $jeune->jeune_id)
+                ->firstOrFail();
+                
+            if ($postulation->statut !== 'en_attente') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Vous ne pouvez retirer que les candidatures en attente.'
+                ]);
+            }
+            
+            $postulation->update([
+                'statut' => 'retiree',
+                'date_retrait' => now()
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Votre candidature a été retirée avec succès.'
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Une erreur est survenue lors du retrait de votre candidature.'
+            ], 500);
+        }
     }
 } 

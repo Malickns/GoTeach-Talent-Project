@@ -47,6 +47,38 @@
             @endif
         </div>
 
+        <div>
+            <x-input-label for="preferences_emploi" :value="__('Préférences d\'emploi (mots-clés)')" />
+            <textarea id="preferences_emploi" name="preferences_emploi" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" rows="3" placeholder="Ex: PHP, marketing, cdi, Dakar">{{ old('preferences_emploi', optional($user->jeune)->preferences_emploi) }}</textarea>
+            <p class="mt-1 text-sm text-gray-600">Séparez les mots-clés par des virgules. Ils seront utilisés pour personnaliser vos recommandations.</p>
+            <x-input-error class="mt-2" :messages="$errors->get('preferences_emploi')" />
+        </div>
+
+        <div>
+            <x-input-label for="types_contrat_preferes" :value="__('Types de contrat préférés')" />
+            <div class="mt-2 grid grid-cols-2 gap-2">
+                @foreach(($typesContrat ?? []) as $key => $label)
+                    <label class="inline-flex items-center gap-2 p-2 border rounded-md">
+                        <input type="checkbox" name="types_contrat_preferes[]" value="{{ $key }}"
+                               @checked(in_array($key, old('types_contrat_preferes', (array) (optional($user->jeune)->types_contrat_preferes ?? []))))>
+                        <span>{{ $label }}</span>
+                    </label>
+                @endforeach
+            </div>
+            <x-input-error class="mt-2" :messages="$errors->get('types_contrat_preferes')" />
+        </div>
+
+        <div>
+            <x-input-label for="secteurs_preferes" :value="__('Secteurs préférés')" />
+            <select id="secteurs_preferes" name="secteurs_preferes[]" multiple class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                @foreach(($secteurs ?? []) as $secteur)
+                    <option value="{{ $secteur }}" @selected(in_array($secteur, old('secteurs_preferes', (array) (optional($user->jeune)->secteurs_preferes ?? []))))>{{ $secteur }}</option>
+                @endforeach
+            </select>
+            <p class="mt-1 text-sm text-gray-600">Maintenez Ctrl (Windows) ou Cmd (Mac) pour sélectionner plusieurs options.</p>
+            <x-input-error class="mt-2" :messages="$errors->get('secteurs_preferes')" />
+        </div>
+
         <div class="flex items-center gap-4">
             <x-primary-button>{{ __('Save') }}</x-primary-button>
 

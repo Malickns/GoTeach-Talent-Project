@@ -33,6 +33,9 @@ class Jeune extends Model
         'annee_obtention',
         'programme_id',
         'nombre_candidatures',
+        'preferences_emploi',
+        'types_contrat_preferes',
+        'secteurs_preferes',
     ];
 
     /**
@@ -40,6 +43,8 @@ class Jeune extends Model
      */
     protected $casts = [
         'date_naissance' => 'date',
+        'types_contrat_preferes' => 'array',
+        'secteurs_preferes' => 'array',
     ];
 
     /**

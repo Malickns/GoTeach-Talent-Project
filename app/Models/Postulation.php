@@ -28,6 +28,14 @@ class Postulation extends Model
 
     protected $casts = [
         'documents_supplementaires' => 'array',
+        'date_postulation' => 'datetime',
+        'date_revue' => 'datetime',
+        'date_decision' => 'datetime',
+        'date_retrait' => 'datetime',
+        'derniere_notification' => 'datetime',
+        'notifie_employeur' => 'boolean',
+        'notifie_jeune' => 'boolean',
+        'notifie_admin' => 'boolean',
     ];
 
     /**
